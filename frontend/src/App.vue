@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { analyzeBatch, publishBatch } from './services/offerService'
+import { analyzeBatch, publishBatch, verifyApiKey } from './services/offerService'
 import type { PublishOffer } from './services/offerService'
 import { clearDraftFiles, loadDraftFiles, saveDraftFiles } from './services/draftStore'
 
@@ -8,10 +8,55 @@ type ItemStatus = 'pending' | 'analyzing' | 'ready' | 'analysis-error' | 'publis
 type Item = PublishOffer & { id: string; preview: string; status: ItemStatus; issue: string }
 const apiKey = ref('')
 const showKey = ref(false)
+const authBusy = ref(false)
+const authError = ref('')
+const authenticated = ref(false)
+const rememberKey = ref(true)
+const KEY_STORAGE = 'ofertas-studio-api-key-v1'
+async function unlock() {
+  const key = apiKey.value.trim()
+  if (!key) { authError.value = 'Escribe tu API Key para continuar.'; return }
+  authBusy.value = true
+  authError.value = ''
+  try {
+    await verifyApiKey(key)
+    apiKey.value = key
+    if (rememberKey.value) localStorage.setItem(KEY_STORAGE, key)
+    else localStorage.removeItem(KEY_STORAGE)
+    authenticated.value = true
+  } catch (e) {
+    authenticated.value = false
+    authError.value = e instanceof Error ? e.message : 'No pudimos comprobar tu clave.'
+    // A rejected stored key must never auto-unlock again.
+    localStorage.removeItem(KEY_STORAGE)
+  } finally { authBusy.value = false }
+}
+function lockStudio() {
+  if (busy.value) return
+  authenticated.value = false
+  apiKey.value = ''
+  localStorage.removeItem(KEY_STORAGE)
+  authError.value = ''
+}
+
 const items = ref<Item[]>([])
 const activeId = ref('')
 const busy = ref(false)
 const modal = ref<'success' | 'error' | ''>('')
+const confirmation = ref<'publish' | 'clear' | ''>('')
+const publishCount = ref(0)
+const confirmBusy = computed(() => busy.value)
+function closeConfirmation() { if (!confirmBusy.value) confirmation.value = '' }
+function acceptConfirmation() {
+  if (confirmBusy.value) return
+  const action = confirmation.value
+  confirmation.value = ''
+  if (action === 'clear') void clearAll()
+  else if (action === 'publish') void publishConfirmed()
+}
+function onDialogKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && confirmation.value) { event.preventDefault(); closeConfirmation() }
+}
 const saved = ref(false)
 const warning = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -103,14 +148,22 @@ async function analyzeAll() {
     targets.forEach(x => { x.status = 'analysis-error'; x.issue = e instanceof Error ? e.message : 'Análisis fallido' })
   } finally { busy.value = false; queueSave() }
 }
-async function publishAll() {
+function publishAll() {
+  if (busy.value) return
   if (!apiKey.value.trim()) { warning.value = 'Introduce la API Key para publicar.'; return }
   const targets = items.value.filter(x => x.status !== 'published' && x.status !== 'uncertain')
   if (!targets.length) { warning.value = 'No hay ofertas pendientes confirmadas para publicar.'; return }
   targets.forEach(x => { x.issue = validate(x).join(', '); if (x.issue) x.status = 'failed' })
   const good = targets.filter(x => !x.issue)
   if (!good.length) { modal.value = 'error'; return }
-  if (!window.confirm(`¿Publicar ${good.length} oferta(s) válidas? Las que tengan errores se conservarán.`)) return
+  publishCount.value = good.length
+  confirmation.value = 'publish'
+}
+async function publishConfirmed() {
+  if (busy.value) return
+  // Revalidate after confirmation: never publish stale or already published items.
+  const good = items.value.filter(x => x.status !== 'published' && x.status !== 'uncertain' && validate(x).length === 0)
+  if (!good.length) { warning.value = 'Ya no hay ofertas válidas para publicar.'; return }
   busy.value = true; warning.value = ''
   try {
     const results = await publishBatch(good, apiKey.value.trim())
@@ -132,12 +185,12 @@ async function clearAll() {
   if (saveTimer) clearTimeout(saveTimer)
   ready.value = false
   items.value.forEach(x => URL.revokeObjectURL(x.preview))
-  items.value = []; activeId.value = ''; warning.value = ''; modal.value = ''; saved.value = false
+  items.value = []; activeId.value = ''; warning.value = ''; modal.value = ''; confirmation.value = ''; saved.value = false
   localStorage.removeItem(STORAGE)
   try { await clearDraftFiles() } catch { warning.value = 'No se pudo eliminar la copia local de imágenes.' }
   ready.value = true
 }
-function askClear() { if (window.confirm('¿Descartar el borrador completo? Esta acción no se puede deshacer.')) void clearAll() }
+function askClear() { if (!busy.value && items.value.length) confirmation.value = 'clear' }
 function queueSave() {
   if (!ready.value) return
   saved.value = false
@@ -156,6 +209,14 @@ async function saveDraft() {
 watch(items, queueSave, { deep: true })
 watch(activeId, queueSave)
 onMounted(async () => {
+  try {
+    const storedKey = localStorage.getItem(KEY_STORAGE)
+    if (storedKey) {
+      apiKey.value = storedKey
+      rememberKey.value = true
+      await unlock()
+    }
+  } catch { authError.value = 'No fue posible recuperar la clave guardada.' }
   try {
     const raw = localStorage.getItem(STORAGE)
     if (raw) {
@@ -178,17 +239,35 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="app-shell">
+  <div v-if="!authenticated" class="auth-screen">
+    <div class="auth-glow auth-glow-one"></div><div class="auth-glow auth-glow-two"></div>
+    <div class="auth-panel">
+      <div class="auth-logo-wrap"><img src="/logo-ofertas.jpg" alt="Logo de Ofertas Relámpago"/></div>
+      <div class="auth-kicker">ACCESO PRIVADO · STUDIO</div>
+      <h1>Tu centro de <em>ofertas.</em></h1>
+      <p class="auth-intro">Conecta tu Studio una sola vez. Después podrás analizar capturas y publicar en Telegram sin volver a copiar la clave.</p>
+      <form class="auth-form" @submit.prevent="unlock">
+        <label for="studio-key">API Key de tu backend</label>
+        <div class="auth-input-wrap"><input id="studio-key" v-model="apiKey" :type="showKey ? 'text' : 'password'" autocomplete="off" spellcheck="false" placeholder="Pega aquí tu X-API-Key" :disabled="authBusy" autofocus/><button type="button" class="auth-eye" :aria-label="showKey ? 'Ocultar clave' : 'Mostrar clave'" @click="showKey = !showKey">{{ showKey ? 'Ocultar' : 'Mostrar' }}</button></div>
+        <label class="auth-remember"><input v-model="rememberKey" type="checkbox" :disabled="authBusy"/><span>Recordar en este dispositivo</span></label>
+        <div v-if="authError" class="auth-error" role="alert">⚠ {{ authError }}</div>
+        <button class="auth-submit" type="submit" :disabled="authBusy || !apiKey.trim()"><span v-if="authBusy" class="spinner"></span>{{ authBusy ? 'Verificando acceso…' : 'Entrar al Studio →' }}</button>
+      </form>
+      <p class="auth-footnote">Tu clave no se incluye en el código de la web. Si eliges «Recordar», se guarda en este navegador; úsalo solo en un dispositivo de confianza.</p>
+    </div>
+    <div class="auth-footer">OFERTAS RELÁMPAGO · TU PANEL PRIVADO ⚡</div>
+  </div>
+  <div v-else class="app-shell">
     <header class="topbar">
       <div class="brand"><img class="brand-logo" src="/logo-ofertas.jpg" alt="Ofertas Relámpago"/><div><strong>Ofertas Relámpago</strong><span>STUDIO / ADMIN</span></div></div>
-      <div class="topbar-right"><span class="status-dot"></span><span>{{ saved ? 'Borrador guardado' : 'Guardando…' }}</span><span class="environment">LOTE V1</span></div>
+      <div class="topbar-right"><button class="auth-logout" type="button" :disabled="busy" @click="lockStudio">Cambiar clave / Salir</button><span class="status-dot"></span><span>{{ saved ? 'Borrador guardado' : 'Guardando…' }}</span><span class="environment">LOTE V1</span></div>
     </header>
     <main class="workspace">
       <section class="page-heading"><div><div class="eyebrow">WORKSPACE / PUBLICACIÓN MASIVA</div><h1>Publica <em>hasta 5 ofertas.</em></h1><p>Analiza todas, corrige solo lo necesario y envía las válidas a Telegram.</p></div><div class="heading-badge">✦ Copilot SDK · Haiku 5.5</div></section>
       <div v-if="warning" class="notice notice-error" role="alert"><span>!</span><p>{{ warning }}</p><button @click="warning = ''">×</button></div>
       <div class="workspace-grid">
         <div class="editor-column">
-          <section class="panel settings-panel"><div class="section-title"><div class="section-icon">⌘</div><div><h2>Conexión privada</h2><p>La API Key permanece solo en memoria, nunca en el borrador.</p></div></div><div class="key-row"><input v-model="apiKey" :type="showKey ? 'text' : 'password'" autocomplete="off" placeholder="X-API-Key"/><button class="secondary-button key-toggle" @click="showKey = !showKey">{{ showKey ? 'Ocultar' : 'Mostrar' }}</button></div></section>
+          
           <section class="panel"><div class="section-title"><div class="step">01</div><div><h2>Importar capturas</h2><p>PNG o JPG · Hasta 10 MB cada una · Máximo 5</p></div><span class="section-tag">IA</span></div>
             <input ref="fileInput" class="visually-hidden" type="file" accept="image/png,image/jpeg" multiple @change="pickFiles(($event.target as HTMLInputElement).files)"/>
             <div class="dropzone" role="button" tabindex="0" @click="fileInput?.click()" @keydown.enter="fileInput?.click()" @keydown.space.prevent="fileInput?.click()" @dragover.prevent @drop.prevent="pickFiles($event.dataTransfer?.files)"><div class="upload-symbol">↥</div><strong>Selecciona hasta 5 capturas</strong><span>O arrástralas aquí · Puedes agregar imágenes después</span></div>
@@ -217,6 +296,18 @@ onBeforeUnmount(() => {
       </div>
       <footer class="footer"><span>ϟ Ofertas Relámpago Studio</span><span>Vue 3 + .NET 10 + Copilot SDK</span></footer>
     </main>
+    <div v-if="confirmation" class="confirm-overlay" role="presentation" @click.self="closeConfirmation" @keydown="onDialogKeydown">
+      <div class="confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-description" tabindex="-1">
+        <div class="confirm-brand"><img src="/logo-ofertas.jpg" alt=""/><span>OFERTAS RELÁMPAGO · STUDIO</span></div>
+        <div class="confirm-symbol" :class="confirmation">{{ confirmation === 'publish' ? '➤' : '⌫' }}</div>
+        <h2 id="confirm-title">{{ confirmation === 'publish' ? `¿Publicar ${publishCount} oferta${publishCount === 1 ? '' : 's'}?` : '¿Descartar el borrador?' }}</h2>
+        <p id="confirm-description">{{ confirmation === 'publish' ? 'Enviaremos a Telegram únicamente las ofertas válidas. Las que tengan errores permanecerán guardadas para corregirlas.' : 'Se eliminarán las capturas y los datos guardados en este dispositivo. Esta acción no se puede deshacer.' }}</p>
+        <div class="confirm-actions">
+          <button type="button" class="confirm-cancel" :disabled="confirmBusy" @click="closeConfirmation">{{ confirmation === 'publish' ? 'Seguir editando' : 'Conservar borrador' }}</button>
+          <button type="button" class="confirm-accept" :class="confirmation" :disabled="confirmBusy" @click="acceptConfirmation">{{ confirmation === 'publish' ? 'Sí, publicar' : 'Sí, descartar' }}</button>
+        </div>
+      </div>
+    </div>
     <div v-if="modal" class="result-overlay" role="dialog" aria-modal="true"><div class="result-card" :class="modal"><div class="result-icon">{{ modal === 'success' ? '✓' : '!' }}</div><h2>{{ modal === 'success' ? '¡Ofertas publicadas!' : 'Revisa las ofertas pendientes' }}</h2><p v-if="modal === 'success'">Telegram confirmó todas las publicaciones. El formulario se limpiará al terminar la animación.</p><p v-else>Las ofertas correctas ya se publicaron. Corrige los campos señalados; si alguna quedó incierta, verifica el canal antes de reenviarla.</p><div v-if="modal === 'error'" class="result-actions"><button class="primary-button" @click="modal = ''; publishAll()">Reintentar válidas</button><button class="secondary-button" @click="modal = ''; askClear()">Limpiar formulario</button><button class="secondary-button" @click="modal = ''">Seguir editando</button></div></div></div>
   </div>
 </template>

@@ -1,5 +1,10 @@
 import type { AnalyzedOffer, StoreName } from '../types/offer'
 
+// Public API origin only. Never put X-API-Key or other secrets in VITE_* variables.
+const configuredApiOrigin = (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/$/, '')
+const apiUrl = (path: string) => `${configuredApiOrigin}${path}`
+
+
 async function ensureOk(response: Response): Promise<void> {
   if (response.ok) return
   const body = await response.text()
@@ -15,7 +20,7 @@ async function ensureOk(response: Response): Promise<void> {
 export async function analyzeOfferImage(image: File, apiKey: string): Promise<AnalyzedOffer> {
   const form = new FormData()
   form.append('image', image)
-  const response = await fetch('/api/offers/analyze-image', {
+  const response = await fetch(apiUrl('/api/offers/analyze-image'), {
     method: 'POST', headers: { 'X-API-Key': apiKey }, body: form,
   })
   await ensureOk(response)
@@ -52,7 +57,7 @@ export async function publishOffer(offer: PublishOffer, apiKey: string): Promise
   if (offer.description.trim()) form.append('Description', offer.description.trim())
   if (offer.image) form.append('Image', offer.image)
   else if (offer.imageUrl.trim()) form.append('ImageUrl', offer.imageUrl.trim())
-  const response = await fetch('/api/telegram/publish', {
+  const response = await fetch(apiUrl('/api/telegram/publish'), {
     method: 'POST', headers: { 'X-API-Key': apiKey }, body: form,
   })
   await ensureOk(response)
@@ -68,7 +73,7 @@ export interface BatchResult {
 export async function analyzeBatch(images: File[], apiKey: string): Promise<BatchResult[]> {
   const form = new FormData()
   images.forEach((image) => form.append('images', image))
-  const response = await fetch('/api/batch/analyze', { method: 'POST', headers: { 'X-API-Key': apiKey }, body: form })
+  const response = await fetch(apiUrl('/api/batch/analyze'), { method: 'POST', headers: { 'X-API-Key': apiKey }, body: form })
   await ensureOk(response)
   return (await response.json() as { results: BatchResult[] }).results
 }
@@ -80,7 +85,17 @@ export async function publishBatch(offers: PublishOffer[], apiKey: string): Prom
     form.append('images', offer.image)
   })
   form.append('offersJson', JSON.stringify(offers.map(({ image: _image, imageUrl: _imageUrl, ...fields }) => fields)))
-  const response = await fetch('/api/batch/publish', { method: 'POST', headers: { 'X-API-Key': apiKey }, body: form })
+  const response = await fetch(apiUrl('/api/batch/publish'), { method: 'POST', headers: { 'X-API-Key': apiKey }, body: form })
   await ensureOk(response)
   return (await response.json() as { results: BatchResult[] }).results
+}
+
+/** Validate credentials without triggering a Copilot request or Telegram publication. */
+export async function verifyApiKey(apiKey: string): Promise<void> {
+  const response = await fetch(apiUrl('/api/auth/validate'), {
+    method: 'GET',
+    headers: { 'X-API-Key': apiKey },
+    cache: 'no-store',
+  })
+  await ensureOk(response)
 }
