@@ -79,7 +79,10 @@ public sealed class TelegramController(ITelegramPublisher publisher, OfferCaptio
                 request.Price,
                 request.OriginalPrice,
                 request.AffiliateUrl,
-                request.Description));
+                request.Description,
+                request.InterestFreeMonths,
+                request.MonthlyPayment,
+                request.InterestFreeMonthsIsUpTo));
 
         //Si viene la imagen en el request
         if (hasFile)

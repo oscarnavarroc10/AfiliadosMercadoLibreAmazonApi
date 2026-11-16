@@ -15,4 +15,7 @@ public sealed record OfferCaptionInput(
     decimal Price,
     decimal? OriginalPrice,
     string AffiliateUrl,
-    string? Description);
+    string? Description,
+    int? InterestFreeMonths = null,
+    decimal? MonthlyPayment = null,
+    bool InterestFreeMonthsIsUpTo = false);

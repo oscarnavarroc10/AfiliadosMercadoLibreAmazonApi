@@ -7,4 +7,7 @@ export interface AnalyzedOffer {
   currency: string | null
   description: string | null
   affiliateUrl: string | null
+  interestFreeMonths: number | null
+  monthlyPayment: number | null
+  interestFreeMonthsIsUpTo: boolean
 }

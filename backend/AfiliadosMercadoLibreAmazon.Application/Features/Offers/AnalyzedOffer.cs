@@ -17,4 +17,7 @@ public sealed record AnalyzedOffer(
     decimal? OriginalPrice,
     string? Currency,
     string? Description,
-    string? AffiliateUrl);
+    string? AffiliateUrl,
+    int? InterestFreeMonths = null,
+    decimal? MonthlyPayment = null,
+    bool InterestFreeMonthsIsUpTo = false);
