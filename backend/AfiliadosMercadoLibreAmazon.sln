@@ -1,6 +1,14 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AfiliadosMercadoLibreAmazon.Api", "AfiliadosMercadoLibreAmazon.Api.csproj", "{FE5197DA-776C-468C-AD27-5E19FE1EC86A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AfiliadosMercadoLibreAmazon.Domain", "AfiliadosMercadoLibreAmazon.Domain\AfiliadosMercadoLibreAmazon.Domain.csproj", "{08BA0EC3-57A9-431A-A299-287C49E08100}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AfiliadosMercadoLibreAmazon.Application", "AfiliadosMercadoLibreAmazon.Application\AfiliadosMercadoLibreAmazon.Application.csproj", "{5F8BC9D9-6E29-4453-ABDE-C644D1B69438}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AfiliadosMercadoLibreAmazon.Infrastructure", "AfiliadosMercadoLibreAmazon.Infrastructure\AfiliadosMercadoLibreAmazon.Infrastructure.csproj", "{0973DC0C-D489-4A47-9681-CE7DBF395C11}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AfiliadosMercadoLibreAmazon.UnitTests", "AfiliadosMercadoLibreAmazon.UnitTests\AfiliadosMercadoLibreAmazon.UnitTests.csproj", "{448BE8C3-C7FE-42F7-A48F-D895C25DE605}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AfiliadosMercadoLibreAmazon.Api", "AfiliadosMercadoLibreAmazon.Api\AfiliadosMercadoLibreAmazon.Api.csproj", "{58946082-C2D1-488F-984F-BA2B388CF0E5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -8,9 +16,25 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{FE5197DA-776C-468C-AD27-5E19FE1EC86A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{FE5197DA-776C-468C-AD27-5E19FE1EC86A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{FE5197DA-776C-468C-AD27-5E19FE1EC86A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{FE5197DA-776C-468C-AD27-5E19FE1EC86A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{08BA0EC3-57A9-431A-A299-287C49E08100}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{08BA0EC3-57A9-431A-A299-287C49E08100}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{08BA0EC3-57A9-431A-A299-287C49E08100}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{08BA0EC3-57A9-431A-A299-287C49E08100}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5F8BC9D9-6E29-4453-ABDE-C644D1B69438}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5F8BC9D9-6E29-4453-ABDE-C644D1B69438}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5F8BC9D9-6E29-4453-ABDE-C644D1B69438}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5F8BC9D9-6E29-4453-ABDE-C644D1B69438}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0973DC0C-D489-4A47-9681-CE7DBF395C11}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0973DC0C-D489-4A47-9681-CE7DBF395C11}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0973DC0C-D489-4A47-9681-CE7DBF395C11}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0973DC0C-D489-4A47-9681-CE7DBF395C11}.Release|Any CPU.Build.0 = Release|Any CPU
+		{448BE8C3-C7FE-42F7-A48F-D895C25DE605}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{448BE8C3-C7FE-42F7-A48F-D895C25DE605}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{448BE8C3-C7FE-42F7-A48F-D895C25DE605}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{448BE8C3-C7FE-42F7-A48F-D895C25DE605}.Release|Any CPU.Build.0 = Release|Any CPU
+		{58946082-C2D1-488F-984F-BA2B388CF0E5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{58946082-C2D1-488F-984F-BA2B388CF0E5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{58946082-C2D1-488F-984F-BA2B388CF0E5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{58946082-C2D1-488F-984F-BA2B388CF0E5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

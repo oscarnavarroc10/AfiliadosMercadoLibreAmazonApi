@@ -1,0 +1,20 @@
+
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <UserSecretsId>9e947197-c9d3-4ea5-91a7-224c4839c497</UserSecretsId>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\AfiliadosMercadoLibreAmazon.Application\AfiliadosMercadoLibreAmazon.Application.csproj" />
+        <ProjectReference Include="..\AfiliadosMercadoLibreAmazon.Infrastructure\AfiliadosMercadoLibreAmazon.Infrastructure.csproj" />
+    </ItemGroup>
+
+</Project>
