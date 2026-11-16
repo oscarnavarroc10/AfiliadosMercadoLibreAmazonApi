@@ -1,27 +1,26 @@
-using System.Globalization;
-using System.Net;
-using AfiliadosMercadoLibreAmazon.Api.Models.Enums;
+
 using AfiliadosMercadoLibreAmazon.Api.Models.Requests;
+using AfiliadosMercadoLibreAmazon.Api.Security;
 using AfiliadosMercadoLibreAmazon.Application.Abstractions.Notifications;
+using AfiliadosMercadoLibreAmazon.Application.Features.Offers;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AfiliadosMercadoLibreAmazon.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public sealed class TelegramController(ITelegramPublisher publisher) : ControllerBase
+[ServiceFilter(typeof(TelegramApiKeyFilter))]
+public sealed class TelegramController(ITelegramPublisher publisher, OfferCaptionBuilder captionBuilder) : ControllerBase
 {
     private const long MaxImageSize = 10 * 1024 * 1024;
-    
-    /// <summary>
-    /// Sends a message to a Telegram channel.
-    /// </summary>
-    /// <param name="cancellationToken"></param>
-    /// <returns></returns>
-    [HttpPost("message")]
-    public async Task<IActionResult> Test(CancellationToken cancellationToken)
+
+    [HttpPost("text-message")]
+    public async Task<IActionResult> TextMessage(
+        CancellationToken cancellationToken)
     {
-        await publisher.PublishMessageAsync("⚡ ¡Primera publicación desde nuestra API .NET 10!", cancellationToken);
+        await publisher.PublishMessageAsync(
+            "🚀 ¡Mensaje desde nuestra API .NET 10!",
+            cancellationToken);
 
         return Ok(new
         {
@@ -29,62 +28,22 @@ public sealed class TelegramController(ITelegramPublisher publisher) : Controlle
             message = "Mensaje enviado a Telegram."
         });
     }
-    
-    /// <summary>
-    /// Envia un mensaje a Telegram con el contenido proporcionado.
-    /// </summary>
-    /// <param name="request"></param>
-    /// <param name="cancellationToken"></param>
-    /// <returns></returns>
+
     [HttpPost("publish")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(11 * 1024 * 1024)]
     public async Task<IActionResult> PublishOffer([FromForm] PublishOfferRequest request, CancellationToken cancellationToken)
     {
-        // 1. Validar título.
-        if (string.IsNullOrWhiteSpace(request.Title))
+        // Validar enum.
+        if (!request.Store.HasValue || !Enum.IsDefined(request.Store.Value))
         {
             return BadRequest(new
             {
-                message = "El título de la oferta es obligatorio."
+                message = "Store debe ser Amazon o MercadoLibre."
             });
         }
 
-        // 2. Validar tienda.
-        var store = request.Store.Value switch
-        {
-            StoreName.Amazon => "Amazon",
-            StoreName.MercadoLibre => "Mercado Libre",
-            _ => throw new ArgumentOutOfRangeException()
-        };
-
-        // 3. Validar precios.
-        if (request.Price <= 0)
-        {
-            return BadRequest(new
-            {
-                message = "El precio debe ser mayor que cero."
-            });
-        }
-
-        if (request.OriginalPrice.HasValue && request.OriginalPrice.Value <= request.Price)
-        {
-            return BadRequest(new
-            {
-                message = "OriginalPrice debe ser mayor que Price."
-            });
-        }
-
-        // 4. Validar enlace de afiliado.
-        if (!Uri.TryCreate(request.AffiliateUrl, UriKind.Absolute, out var affiliateUri) || affiliateUri.Scheme != Uri.UriSchemeHttps)
-        {
-            return BadRequest(new
-            {
-                message = "AffiliateUrl debe ser una URL HTTPS válida."
-            });
-        }
-
-        // 5. Validar imagen.
+        // Exigir exactamente una fuente de imagen.
         var hasFile = request.Image is { Length: > 0 };
         var hasUrl = !string.IsNullOrWhiteSpace(request.ImageUrl);
 
@@ -92,29 +51,16 @@ public sealed class TelegramController(ITelegramPublisher publisher) : Controlle
         {
             return BadRequest(new
             {
-                message = "Debes proporcionar Image o ImageUrl, pero no ambas."
+                message = "Debes enviar Image o ImageUrl, pero no ambas."
             });
         }
 
-        if (hasFile)
+        if (hasFile && request.Image!.Length > MaxImageSize)
         {
-            if (request.Image!.Length > MaxImageSize)
+            return BadRequest(new
             {
-                return BadRequest(new
-                {
-                    message = "La imagen no puede superar los 10 MB."
-                });
-            }
-
-            var extension = Path.GetExtension(request.Image.FileName).ToLowerInvariant();
-
-            if (extension is not (".jpg" or ".jpeg" or ".png"))
-            {
-                return BadRequest(new
-                {
-                    message = "Solo se admiten JPG, JPEG y PNG por ahora."
-                });
-            }
+                message = "La imagen no puede superar los 10 MB."
+            });
         }
 
         if (hasUrl && (!Uri.TryCreate(request.ImageUrl, UriKind.Absolute, out var imageUri) || imageUri.Scheme != Uri.UriSchemeHttps))
@@ -125,52 +71,75 @@ public sealed class TelegramController(ITelegramPublisher publisher) : Controlle
             });
         }
 
-        // 6. Construir el texto de la oferta.
-        var culture = CultureInfo.GetCultureInfo("es-MX");
+        // Construir el caption en Application.
+        var caption = captionBuilder.Build(
+            new OfferCaptionInput(
+                request.Title,
+                request.Store.Value.ToString(),
+                request.Price,
+                request.OriginalPrice,
+                request.AffiliateUrl,
+                request.Description));
 
-        var title = WebUtility.HtmlEncode(request.Title.Trim());
-        var description = WebUtility.HtmlEncode(request.Description?.Trim() ?? string.Empty);
-
-        var affiliateUrl = WebUtility.HtmlEncode(request.AffiliateUrl);
-
-        var caption = $"""
-                       ⚡ <b>¡OFERTA RELÁMPAGO!</b>
-
-                       🛒 <b>{title}</b>
-
-                       💰 <b>{request.Price.ToString("C", culture)}</b>
-                       """;
-
-        if (request.OriginalPrice is { } originalPrice)
-        {
-            var discount = (int)Math.Round((1 - request.Price / originalPrice) * 100, MidpointRounding.AwayFromZero);
-
-            caption += $"\n🔥 <s>{originalPrice.ToString("C", culture)}</s> | {discount}% de descuento";
-        }
-
-        if (!string.IsNullOrWhiteSpace(description))
-        {
-            caption += $"\n\n{description}";
-        }
-
-        caption += $"\n\n🛍️ <b>Comprar en {store}:</b>\n{affiliateUrl}";
-
-        // Límite conservador de Telegram.
-        if (caption.Length > 1024)
-        {
-            return BadRequest(new
-            {
-                message = "La publicación supera el límite de texto de Telegram."
-            });
-        }
-
-        // 7. Publicar la oferta.
+        //Si viene la imagen en el request
         if (hasFile)
         {
-            await using var stream = request.Image!.OpenReadStream();
+            var file = request.Image!;
 
-            await publisher.PublishOfferAsync(stream, request.Image.FileName, caption, cancellationToken);
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+            if (extension is not (".jpg" or ".jpeg" or ".png"))
+            {
+                return BadRequest(new
+                {
+                    message = "Los archivos deben ser JPG, JPEG o PNG."
+                });
+            }
+
+            await using var stream = file.OpenReadStream();
+
+            // Validar la firma real de la imagen.
+            var header = new byte[8];
+            var bytesRead = await stream.ReadAsync(header.AsMemory(), cancellationToken);
+
+            var isJpeg = bytesRead >= 3 && header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF;
+
+            var isPng = bytesRead == 8 && header.AsSpan().SequenceEqual(
+                new byte[]
+                {
+                    0x89, 0x50, 0x4E, 0x47,
+                    0x0D, 0x0A, 0x1A, 0x0A
+                });
+
+            var validImage = extension switch
+            {
+                ".jpg" or ".jpeg" => isJpeg,
+                ".png" => isPng,
+                _ => false
+            };
+
+            if (!validImage)
+            {
+                return BadRequest(new
+                {
+                    message = "El contenido no corresponde a una imagen válida."
+                });
+            }
+
+            // Regresar al inicio para enviar el archivo completo.
+            if (!stream.CanSeek)
+            {
+                return BadRequest(new
+                {
+                    message = "No se pudo procesar el archivo."
+                });
+            }
+
+            stream.Position = 0;
+
+            await publisher.PublishOfferAsync(stream, file.FileName, caption, cancellationToken);
         }
+        //Si viene la imagen solo en URL
         else
         {
             await publisher.PublishOfferAsync(request.ImageUrl!, caption, cancellationToken);
