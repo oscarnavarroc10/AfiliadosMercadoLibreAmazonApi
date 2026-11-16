@@ -1,3 +1,4 @@
+using AfiliadosMercadoLibreAmazon.Application.Abstractions.AI;
 using AfiliadosMercadoLibreAmazon.Application.Abstractions.Notifications;
 using AfiliadosMercadoLibreAmazon.Infrastructure.Configuration;
 using AfiliadosMercadoLibreAmazon.Infrastructure.Services;
@@ -26,6 +27,9 @@ public static class DependencyInjection
                     new Uri("https://api.telegram.org/");
                 client.Timeout = TimeSpan.FromSeconds(30);
             });
+
+        // GitHub Copilot SDK - Análisis de imágenes con IA
+        services.AddScoped<IOfferImageAnalyzer, CopilotOfferImageAnalyzer>();
 
         return services;
     }
