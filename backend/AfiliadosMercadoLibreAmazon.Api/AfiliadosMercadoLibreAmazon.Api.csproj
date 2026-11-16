@@ -1,3 +1,4 @@
+
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
     <PropertyGroup>
@@ -8,12 +9,12 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10"/>
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="AfiliadosMercadoLibreAmazon.Application\AfiliadosMercadoLibreAmazon.Application.csproj" />
-      <ProjectReference Include="AfiliadosMercadoLibreAmazon.Infrastructure\AfiliadosMercadoLibreAmazon.Infrastructure.csproj" />
+        <ProjectReference Include="..\AfiliadosMercadoLibreAmazon.Application\AfiliadosMercadoLibreAmazon.Application.csproj" />
+        <ProjectReference Include="..\AfiliadosMercadoLibreAmazon.Infrastructure\AfiliadosMercadoLibreAmazon.Infrastructure.csproj" />
     </ItemGroup>
 
 </Project>
