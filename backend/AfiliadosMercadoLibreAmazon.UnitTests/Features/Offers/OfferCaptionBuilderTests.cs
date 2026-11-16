@@ -92,6 +92,15 @@ public sealed class OfferCaptionBuilderTests
     }
 
     [Fact]
+    public void Build_WithAmazonLink_ShowsFullVisibleUrl()
+    {
+        var offer = CreateValidOffer() with { Store = "Amazon", AffiliateUrl = "https://amzn.to/abc123" };
+        var caption = _builder.Build(offer);
+        Assert.Contains("Comprar en Amazon:", caption);
+        Assert.Contains("https://amzn.to/abc123", caption);
+    }
+
+    [Fact]
     public void Build_WhenTitleContainsHtml_EncodesSpecialCharacters()
     {
         // Arrange

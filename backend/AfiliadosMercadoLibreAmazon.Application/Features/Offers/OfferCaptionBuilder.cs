@@ -88,7 +88,7 @@ public sealed class OfferCaptionBuilder
         }
 
         // Enlace de compra con formato HTML.
-        caption += $"\n\n🛍️ <a href=\"{affiliateUrl}\"><b>Comprar en {store}</b></a>";
+        caption += $"\n\n🛍️ <b>Comprar en {store}:</b>\n{affiliateUrl}";
 
         // Límite conservador, contando también etiquetas HTML.
         if (caption.Length > 1024)
