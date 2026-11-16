@@ -92,7 +92,10 @@ public sealed class CopilotOfferImageAnalyzer : IOfferImageAnalyzer
                                "originalPrice": null,
                                "currency": null,
                                "description": null,
-                               "affiliateUrl": null
+                               "affiliateUrl": null,
+                               "interestFreeMonths": null,
+                               "monthlyPayment": null,
+                               "interestFreeMonthsIsUpTo": false
                              }
 
                              Reglas:
@@ -103,6 +106,12 @@ public sealed class CopilotOfferImageAnalyzer : IOfferImageAnalyzer
                              - currency: moneda identificable.
                              - description: descripción breve y objetiva.
                              - affiliateUrl: siempre null.
+                             - interestFreeMonths: número entero de meses SIN INTERESES (MSI) solo si la captura lo indica explícitamente; de lo contrario null.
+                             - monthlyPayment: monto mensual numérico solo si está explícitamente visible junto a los MSI; de lo contrario null. Nunca calcules mensualidades.
+                             - interestFreeMonthsIsUpTo: true solo si dice "hasta N meses sin intereses"; false en los demás casos.
+                             - Si aparecen varias opciones de MSI, usa la opción de mayor número de meses que se vea claramente y su mensualidad correspondiente, si aparece.
+                             - No confundas pagos con intereses, crédito regular, quincenas ni pagos diferidos con MSI.
+                             - Si no hay MSI explícitos, interestFreeMonths y monthlyPayment deben ser null, e interestFreeMonthsIsUpTo false.
                              - No inventes información.
                              - Si un dato no es legible, utiliza null.
                              - No confundas mensualidades con precio total.

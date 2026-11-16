@@ -79,7 +79,10 @@ public sealed class TelegramController(ITelegramPublisher publisher, OfferCaptio
                 request.Price,
                 request.OriginalPrice,
                 request.AffiliateUrl,
-                request.Description));
+                request.Description,
+                request.InterestFreeMonths,
+                request.MonthlyPayment,
+                request.InterestFreeMonthsIsUpTo));
 
         //Si viene la imagen en el request
         if (hasFile)
@@ -137,12 +140,12 @@ public sealed class TelegramController(ITelegramPublisher publisher, OfferCaptio
 
             stream.Position = 0;
 
-            await publisher.PublishOfferAsync(stream, file.FileName, caption, cancellationToken);
+            await publisher.PublishOfferAsync(stream, file.FileName, caption, request.AffiliateUrl, request.Store.Value.ToString(), cancellationToken);
         }
         //Si viene la imagen solo en URL
         else
         {
-            await publisher.PublishOfferAsync(request.ImageUrl!, caption, cancellationToken);
+            await publisher.PublishOfferAsync(request.ImageUrl!, caption, request.AffiliateUrl, request.Store.Value.ToString(), cancellationToken);
         }
 
         return Ok(new

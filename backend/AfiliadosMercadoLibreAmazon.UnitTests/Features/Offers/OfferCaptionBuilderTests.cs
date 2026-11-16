@@ -92,6 +92,15 @@ public sealed class OfferCaptionBuilderTests
     }
 
     [Fact]
+    public void Build_WithAmazonLink_ShowsFullVisibleUrl()
+    {
+        var offer = CreateValidOffer() with { Store = "Amazon", AffiliateUrl = "https://amzn.to/abc123" };
+        var caption = _builder.Build(offer);
+        Assert.Contains("Comprar en Amazon:", caption);
+        Assert.Contains("https://amzn.to/abc123", caption);
+    }
+
+    [Fact]
     public void Build_WhenTitleContainsHtml_EncodesSpecialCharacters()
     {
         // Arrange
@@ -106,6 +115,28 @@ public sealed class OfferCaptionBuilderTests
         // Assert
         Assert.DoesNotContain("<script>", caption);
         Assert.Contains("&lt;script&gt;", caption);
+    }
+
+    [Fact]
+    public void Build_WithMsi_IncludesInstallmentsAndPayment()
+    {
+        var offer = CreateValidOffer() with { InterestFreeMonths = 12, MonthlyPayment = 50m, InterestFreeMonthsIsUpTo = true };
+        var caption = _builder.Build(offer);
+        Assert.Contains("Hasta 12 meses sin intereses", caption);
+        Assert.Contains("$50.00", caption);
+        Assert.Contains("Sujeto a tarjetas participantes", caption);
+    }
+
+    [Fact]
+    public void Build_WithoutMsi_DoesNotMentionInstallments()
+    {
+        Assert.DoesNotContain("meses sin intereses", _builder.Build(CreateValidOffer()));
+    }
+
+    [Fact]
+    public void Build_WithMonthlyPaymentButNoMsi_Throws()
+    {
+        Assert.Throws<ArgumentException>(() => _builder.Build(CreateValidOffer() with { MonthlyPayment = 100m }));
     }
 
     private static OfferCaptionInput CreateValidOffer()

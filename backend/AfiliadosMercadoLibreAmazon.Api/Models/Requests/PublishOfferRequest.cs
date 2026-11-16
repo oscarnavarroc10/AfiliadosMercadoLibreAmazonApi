@@ -24,6 +24,14 @@ public sealed class PublishOfferRequest
     [MaxLength(400)]
     public string? Description { get; set; }
 
+    [Range(1, 60)]
+    public int? InterestFreeMonths { get; set; }
+
+    [Range(typeof(decimal), "0.01", "999999999")]
+    public decimal? MonthlyPayment { get; set; }
+
+    public bool InterestFreeMonthsIsUpTo { get; set; }
+
     public IFormFile? Image { get; set; }
 
     public string? ImageUrl { get; set; }

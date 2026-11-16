@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 using AfiliadosMercadoLibreAmazon.Application.Abstractions.Notifications;
 using AfiliadosMercadoLibreAmazon.Infrastructure.Configuration;
 using Microsoft.Extensions.Options;
@@ -35,7 +36,7 @@ public sealed class TelegramPublisher(HttpClient httpClient, IOptions<TelegramOp
     /// <param name="imageUrl"></param>
     /// <param name="caption"></param>
     /// <param name="cancellationToken"></param>
-    public async Task PublishOfferAsync(string imageUrl, string caption, CancellationToken cancellationToken = default)
+    public async Task PublishOfferAsync(string imageUrl, string caption, string affiliateUrl, string store, CancellationToken cancellationToken = default)
     {
         var settings = options.Value;
 
@@ -46,7 +47,8 @@ public sealed class TelegramPublisher(HttpClient httpClient, IOptions<TelegramOp
                 chat_id = settings.ChatId,
                 photo = imageUrl,
                 caption,
-                parse_mode = "HTML"
+                parse_mode = "HTML",
+                reply_markup = BuildPurchaseButton(affiliateUrl, store)
             },
             cancellationToken);
 
@@ -62,7 +64,7 @@ public sealed class TelegramPublisher(HttpClient httpClient, IOptions<TelegramOp
     /// <param name="cancellationToken"></param>
     /// <exception cref="ArgumentException"></exception>
     /// <exception cref="NotSupportedException"></exception>
-    public async Task PublishOfferAsync(Stream imageStream, string fileName, string caption, CancellationToken cancellationToken = default)
+    public async Task PublishOfferAsync(Stream imageStream, string fileName, string caption, string affiliateUrl, string store, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(imageStream);
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
@@ -82,6 +84,7 @@ public sealed class TelegramPublisher(HttpClient httpClient, IOptions<TelegramOp
         form.Add(new StringContent(caption), "caption");
 
         form.Add(new StringContent("HTML"), "parse_mode");
+        form.Add(new StringContent(JsonSerializer.Serialize(BuildPurchaseButton(affiliateUrl, store))), "reply_markup");
 
         using var imageContent = new StreamContent(imageStream);
 
@@ -103,4 +106,19 @@ public sealed class TelegramPublisher(HttpClient httpClient, IOptions<TelegramOp
 
         response.EnsureSuccessStatusCode();
     }
+    private static object BuildPurchaseButton(string affiliateUrl, string store)
+    {
+        if (!Uri.TryCreate(affiliateUrl, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
+            throw new ArgumentException("El enlace de afiliado debe ser una URL HTTPS válida.", nameof(affiliateUrl));
+
+        var buttonText = store switch
+        {
+            "Amazon" => "🛒 Comprar en Amazon",
+            "MercadoLibre" => "🛒 Comprar en Mercado Libre",
+            _ => throw new ArgumentException("Tienda no soportada.", nameof(store))
+        };
+
+        return new { inline_keyboard = new[] { new[] { new { text = buttonText, url = affiliateUrl } } } };
+    }
+
 }

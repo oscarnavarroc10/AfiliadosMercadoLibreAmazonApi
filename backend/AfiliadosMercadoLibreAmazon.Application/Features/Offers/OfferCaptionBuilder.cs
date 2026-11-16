@@ -30,6 +30,15 @@ public sealed class OfferCaptionBuilder
             throw new ArgumentException("La descripción no puede superar 400 caracteres.");
         }
 
+        if (offer.InterestFreeMonths is { } months && (months < 1 || months > 60))
+            throw new ArgumentException("Los meses sin intereses deben estar entre 1 y 60.");
+
+        if (offer.MonthlyPayment is { } monthlyPayment && monthlyPayment <= 0)
+            throw new ArgumentException("La mensualidad debe ser mayor que cero.");
+
+        if (!offer.InterestFreeMonths.HasValue && (offer.MonthlyPayment.HasValue || offer.InterestFreeMonthsIsUpTo))
+            throw new ArgumentException("Para indicar mensualidades debes especificar los meses sin intereses.");
+
         if (!Uri.TryCreate(offer.AffiliateUrl, UriKind.Absolute, out var affiliateUri) || affiliateUri.Scheme != Uri.UriSchemeHttps)
         {
             throw new ArgumentException("El enlace de afiliado debe ser una URL HTTPS válida.");
@@ -64,13 +73,22 @@ public sealed class OfferCaptionBuilder
             caption += $"\n🔥 <s>{originalPrice.ToString("C", culture)}</s> | {discount}% de descuento";
         }
 
+        if (offer.InterestFreeMonths is { } interestFreeMonths)
+        {
+            var prefix = offer.InterestFreeMonthsIsUpTo ? "Hasta " : "";
+            caption += $"\n💳 <b>{prefix}{interestFreeMonths} meses sin intereses</b>";
+            if (offer.MonthlyPayment is { } payment)
+                caption += $"\n💳 {payment.ToString("C", culture)} al mes";
+            caption += "\n<i>Sujeto a tarjetas participantes y condiciones de la tienda.</i>";
+        }
+
         if (!string.IsNullOrWhiteSpace(description))
         {
             caption += $"\n\n{description}";
         }
 
         // Enlace de compra con formato HTML.
-        caption += $"\n\n🛍️ <a href=\"{affiliateUrl}\"><b>Comprar en {store}</b></a>";
+        caption += $"\n\n🛍️ <b>Comprar en {store}:</b>\n{affiliateUrl}";
 
         // Límite conservador, contando también etiquetas HTML.
         if (caption.Length > 1024)
